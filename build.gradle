@@ -1,0 +1,40 @@
+def haxeExec = "haxe"
+def scutsSrcDir = "../scutshots/scutsCore/src"
+def srcDir = "src"
+def testDir = "test"
+def testBinDir = "bin/test"
+def testBinFile = testBinDir + "/testNeko"
+def testTimes = false
+  
+
+
+task test (type:Exec) {
+  
+  
+  mkdir testBinDir
+  
+  def cp = "-cp"
+
+  def times = {
+    if (testTimes) ['--times', '-D', 'macrotimes', ] else []
+  }
+ 
+  def values = [
+    haxeExec,
+    cp, srcDir,
+    cp, testDir,
+    cp, scutsSrcDir,
+    '-lib', 'utest',
+    '-main', 'AllTests',
+    '-x', testBinFile,
+    '--connect', '1978'
+    ] + times()
+  commandLine(values)
+    
+
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '1.2'
+    jarFile = 'gradle/wrapper/wrapper.jar'
+}
