@@ -4,20 +4,20 @@ package scuts.app.nav;
 //import scuts.core.macros.Lazy;
 
 
-import scuts.Assert;
-import scuts.core.extensions.Options;
+import scuts.core.debug.Assert;
+import scuts.core.Options;
 
 import scuts.core.reactive.Behaviour;
 using scuts.core.reactive.Behaviours;
-import scuts.core.types.Option;
-import scuts.core.types.Promise;
+import scuts.core.Option;
+import scuts.core.Promise;
 import scuts.Scuts;
 
-using scuts.core.extensions.Functions;
-using scuts.core.extensions.Options;
-using scuts.core.extensions.Iterables;
-using scuts.core.extensions.Arrays;
-using scuts.core.extensions.Promises;
+using scuts.core.Functions;
+using scuts.core.Options;
+using scuts.core.Iterables;
+using scuts.core.Arrays;
+using scuts.core.Promises;
 
 
 

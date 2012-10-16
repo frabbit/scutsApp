@@ -1,15 +1,15 @@
 package scuts.app.nav;
 
 
-import scuts.core.extensions.Promises;
-import scuts.core.extensions.Tup2s;
-import scuts.core.types.Option;
-import scuts.core.types.Promise;
+import scuts.core.Promises;
+import scuts.core.Tup2s;
+import scuts.core.Option;
+import scuts.core.Promise;
 import scuts.Unit;
 
-using scuts.core.extensions.Functions;
+using scuts.core.Functions;
 
-using scuts.core.extensions.OptionPredicates;
+using scuts.core.OptionPredicates;
 using scuts.core.reactive.Behaviours;
 
 

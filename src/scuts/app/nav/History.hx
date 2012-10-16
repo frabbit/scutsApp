@@ -1,11 +1,11 @@
 package scuts.app.nav;
-import scuts.Assert;
+import scuts.core.debug.Assert;
 import scuts.core.reactive.Behaviour;
-import scuts.core.types.Promise;
+import scuts.core.Promise;
 using scuts.core.reactive.Behaviours;
 using scuts.core.reactive.Streams;
-using scuts.core.extensions.Promises;
-using scuts.core.extensions.Arrays;
+using scuts.core.Promises;
+using scuts.core.Arrays;
 
 
 class History<NT, Phase>
