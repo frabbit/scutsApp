@@ -4,13 +4,11 @@ package scuts.app.nav;
 //import scuts.core.macros.Lazy;
 
 
+import haxe.ds.IntMap;
 import scuts.core.debug.Assert;
-import scuts.core.Options;
 
-import scuts.reactive.Behaviour;
 using scuts.reactive.Behaviours;
-import scuts.core.Option;
-import scuts.core.Promise;
+import scuts.core.Unit;
 import scuts.Scuts;
 
 using scuts.core.Functions;
@@ -23,7 +21,7 @@ using scuts.core.Promises;
 
 
 
-typedef Handler<NT,X,Y> = { interested : NT->NT->Option<X>, run:X->Promise<Y> };
+typedef Handler<NT,X,Y> = { interested : NT->NT->Option<X>, run:X->PromiseD<Y> };
 
 typedef Interceptor<NT,X> = Handler<NT, X, Bool>;
 
@@ -84,15 +82,15 @@ class Navigation<NT, Phase>
   
   
   
-  public var current (default, null): Behaviour<NT>;
-  public var transition (default, null): Behaviour<Option<{from:NT, to:NT}>>;
-  public var currentProgress (default, null): Behaviour<Promise<Bool>>;
+  public var current (default, null): BehaviourSource<NT>;
+  public var transition (default, null): BehaviourSource<Option<{from:NT, to:NT}>>;
+  public var currentProgress (default, null): BehaviourSource<PromiseD<Bool>>;
   
   
   
   var phaseToInt : Phase -> Int;
   var eq:NT -> NT -> Bool;
-  var handlers : IntHash<Array<Handler<NT, Dynamic, Dynamic>>>;
+  var handlers : IntMap<Array<Handler<NT, Dynamic, Dynamic>>>;
   var interceptors : Array<Interceptor<NT, Dynamic>>;
   var blockers : Array<NT->NT->Bool>;
   
@@ -105,7 +103,7 @@ class Navigation<NT, Phase>
     this.allPhases = allPhases.map(phaseToInt);
     
     
-    handlers = new IntHash();
+    handlers = new IntMap();
     for (p in this.allPhases) {
       handlers.set(p, []);
     }
@@ -116,12 +114,12 @@ class Navigation<NT, Phase>
     
     this.eq = eq;
     
-    transition = Behaviours.pure(None);
-    currentProgress = Behaviours.pure(Promises.pure(true));
-    current = Behaviours.pure(start);
+    transition = Behaviours.source(None);
+    currentProgress = Behaviours.source(Promises.pure(true));
+    current = Behaviours.source(start);
   }
   
-  function addGeneric <X>(phase:Phase, interested:NT->NT->Option<X>, run : X->Promise<Dynamic>):Bond 
+  function addGeneric <X>(phase:Phase, interested:NT->NT->Option<X>, run : X->PromiseD<Dynamic>):Bond 
   {
     var key = phaseToInt(phase);
     
@@ -146,7 +144,7 @@ class Navigation<NT, Phase>
     return addAsyncVoid(phase, interested, run.map(Promises.pure));
   }
   
-  public function addAsyncVoid <X>(phase: Phase, interested:NT->NT->Option<X>, run:Void->Promise<Dynamic>):Bond {
+  public function addAsyncVoid <X>(phase: Phase, interested:NT->NT->Option<X>, run:Void->PromiseD<Dynamic>):Bond {
     return addGeneric(phase, interested, run.promote());
   }
   
@@ -154,11 +152,11 @@ class Navigation<NT, Phase>
     return addAsync(phase, interested, run.map(Promises.pure));
   }
   
-  public function addAsync <X>(phase: Phase, interested:NT->NT->Option<X>, run:X->Promise<Dynamic>):Bond {
+  public function addAsync <X>(phase: Phase, interested:NT->NT->Option<X>, run:X->PromiseD<Dynamic>):Bond {
     return addGeneric(phase, interested, run);
   }
   
-  public function addAsyncFromTo <X>(phaseFrom: Phase, phaseTo:Phase, interested:NT->NT->Option<X>, run:X->Promise<Dynamic>):Bond {
+  public function addAsyncFromTo <X>(phaseFrom: Phase, phaseTo:Phase, interested:NT->NT->Option<X>, run:X->PromiseD<Dynamic>):Bond {
     Assert.isTrue(phaseToInt(phaseFrom) < phaseToInt(phaseTo));
     
     
@@ -180,7 +178,7 @@ class Navigation<NT, Phase>
     return makeBond(blockers, blocker);
   }
   
-  public function addInterceptorAsyncVoid <X>(interested:NT->NT->Option<X>, run:Void->Promise<Bool>):Bond {
+  public function addInterceptorAsyncVoid <X>(interested:NT->NT->Option<X>, run:Void->PromiseD<Bool>):Bond {
     return makeBond(interceptors, { interested : interested, run : run.promote() } );
   }
   
@@ -188,7 +186,7 @@ class Navigation<NT, Phase>
     return addInterceptorAsync(interested, run.map(Promises.pure));
   }
   
-  public function addInterceptorAsync <X>(interested:NT->NT->Option<X>, run:X->Promise<Bool>):Bond {
+  public function addInterceptorAsync <X>(interested:NT->NT->Option<X>, run:X->PromiseD<Bool>):Bond {
     return makeBond(interceptors, { interested : interested, run : run } );
   }
 
@@ -203,12 +201,12 @@ class Navigation<NT, Phase>
   
   public function canGoto (target:NT):Bool {
     var from = current.get();
-    return currentProgress.get().isDone() && !eq(from, target);
+    return currentProgress.get().isComplete() && !eq(from, target);
   }
   
-  public function goto (target:NT):Promise<Bool> 
+  public function goto (target:NT):PromiseD<Bool> 
   {
-    return if (currentProgress.get().isDone()) 
+    return if (currentProgress.get().isComplete()) 
     {
       
       var from = current.get();
@@ -247,11 +245,9 @@ class Navigation<NT, Phase>
     } else {
       Promises.pure(false);
     }
-    
-    
   }
   
-  function runInterceptors (from:NT, target:NT, interceptors:Array<Interceptor<NT, Dynamic>>):Promise<Bool>
+  function runInterceptors (from:NT, target:NT, interceptors:Array<Interceptor<NT, Dynamic>>):PromiseD<Bool>
   {
     var promises = interceptors
       .filterWithOption(function (x) return x.interested(from, target).map(function (v) return { handler:x, val:v } ))
@@ -259,7 +255,7 @@ class Navigation<NT, Phase>
     return Promises.combineIterable(promises).map(function (x) return x.all(Scuts.id));
   }
   
-  function runHandlers (from:NT, target:NT, handlers:Array<Handler<NT, Dynamic, Dynamic>>):Promise<Dynamic> {
+  function runHandlers (from:NT, target:NT, handlers:Array<Handler<NT, Dynamic, Dynamic>>):PromiseD<Dynamic> {
     
     var promises = handlers
       .filterWithOption(function (x) return x.interested(from, target).map(function (v) return { handler:x, val:v }))
