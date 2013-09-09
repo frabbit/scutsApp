@@ -1,9 +1,9 @@
 package scuts.app.nav;
 import scuts.core.debug.Assert;
-import scuts.core.reactive.Behaviour;
+import scuts.reactive.Behaviour;
 import scuts.core.Promise;
-using scuts.core.reactive.Behaviours;
-using scuts.core.reactive.Streams;
+using scuts.reactive.Behaviours;
+using scuts.reactive.Streams;
 using scuts.core.Promises;
 using scuts.core.Arrays;
 

@@ -7,8 +7,8 @@ package scuts.app.nav;
 import scuts.core.debug.Assert;
 import scuts.core.Options;
 
-import scuts.core.reactive.Behaviour;
-using scuts.core.reactive.Behaviours;
+import scuts.reactive.Behaviour;
+using scuts.reactive.Behaviours;
 import scuts.core.Option;
 import scuts.core.Promise;
 import scuts.Scuts;

@@ -10,7 +10,7 @@ import scuts.Unit;
 using scuts.core.Functions;
 
 using scuts.core.OptionPredicates;
-using scuts.core.reactive.Behaviours;
+using scuts.reactive.Behaviours;
 
 
 import scuts.app.nav.NavigationTest;

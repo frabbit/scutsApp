@@ -10,7 +10,7 @@ import scuts.Unit;
 using scuts.core.Functions;
 
 using scuts.core.OptionPredicates;
-using scuts.core.reactive.Behaviours;
+using scuts.reactive.Behaviours;
 
 
 
@@ -49,10 +49,15 @@ class NavigationTest
   public function testHandlers() 
   {
     var nav = new Navigation(Startup, function (a,b) return a == b, Phases.toInt, Phases.all());
-    var toHome = function (from, to) return switch (to) { case Home(title): Some(title); default: None; };
     
-    var r = "false";
+    var toHome = function (from, to) return switch (to) { 
+      case Home(title): Some(title); 
+      default: None; 
+    };
     
+    var r = "";
+    
+        
     nav.addSync(First, toHome, function (t) r = t);
     
     nav.goto(Home("hi"));
