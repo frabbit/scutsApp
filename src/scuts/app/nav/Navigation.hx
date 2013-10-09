@@ -77,28 +77,38 @@ private class Bond
   
 }
 
-class Navigation<NT, Phase> 
+class Navigation <NS, Phase> 
 {
   
   
   
-  public var current (default, null): BehaviourSource<NT>;
-  public var transition (default, null): BehaviourSource<Option<{from:NT, to:NT}>>;
-  public var currentProgress (default, null): BehaviourSource<PromiseD<Bool>>;
+  public var current (default, null): Behaviour<NS>;
+  public var transition (default, null): Behaviour<Option<{from:NS, to:NS}>>;
+  public var currentProgress (default, null): Behaviour<PromiseD<Bool>>;
+
+  var currentSource: BehaviourSource<NS>;
+  var transitionSource: BehaviourSource<Option<{from:NS, to:NS}>>;
+  var currentProgressSource: BehaviourSource<PromiseD<Bool>>;
+
+
   
   
   
   var phaseToInt : Phase -> Int;
-  var eq:NT -> NT -> Bool;
-  var handlers : IntMap<Array<Handler<NT, Dynamic, Dynamic>>>;
-  var interceptors : Array<Interceptor<NT, Dynamic>>;
-  var blockers : Array<NT->NT->Bool>;
+  var eq:NS -> NS -> Bool;
+  var handlers : IntMap<Array<Handler<NS, Dynamic, Dynamic>>>;
+  var interceptors : Array<Interceptor<NS, Dynamic>>;
+  var blockers : Array<NS->NS->Bool>;
   
   var allPhases:Array<Int>;
   
-  //var blocker : NT->NT->Bool;
+  //var blocker : NS->NS->Bool;
   
-  public function new(start:NT, eq:NT->NT->Bool, phaseToInt : Phase -> Int, allPhases:Array<Phase>) 
+  @:noUsing public static function create<NS, Phase>(start:NS, eq:NS->NS->Bool, phaseToInt : Phase -> Int, allPhases:Array<Phase>) {
+    return new Navigation(start, eq, phaseToInt, allPhases);
+  }
+
+  public function new(start:NS, eq:NS->NS->Bool, phaseToInt : Phase -> Int, allPhases:Array<Phase>) 
   {
     this.allPhases = allPhases.map(phaseToInt);
     
@@ -114,12 +124,16 @@ class Navigation<NT, Phase>
     
     this.eq = eq;
     
-    transition = Behaviours.source(None);
-    currentProgress = Behaviours.source(Promises.pure(true));
-    current = Behaviours.source(start);
+    transition = transitionSource = Behaviours.source(None);
+    currentProgress = currentProgressSource = Behaviours.source(Promises.pure(true));
+    current = currentSource = Behaviours.source(start);
+
+
+
+
   }
   
-  function addGeneric <X>(phase:Phase, interested:NT->NT->Option<X>, run : X->PromiseD<Dynamic>):Bond 
+  function addGeneric <X>(phase:Phase, interested:NS->NS->Option<X>, run : X->PromiseD<Dynamic>):Bond 
   {
     var key = phaseToInt(phase);
     
@@ -140,23 +154,23 @@ class Navigation<NT, Phase>
   }
   
   
-  public function addSyncVoid <X>(phase: Phase, interested:NT->NT->Option<X>, run:Void->Dynamic):Bond {
+  public function addSyncVoid <X,T>(phase: Phase, interested:NS->NS->Option<X>, run:Void->T):Bond {
     return addAsyncVoid(phase, interested, run.map(Promises.pure));
   }
   
-  public function addAsyncVoid <X>(phase: Phase, interested:NT->NT->Option<X>, run:Void->PromiseD<Dynamic>):Bond {
+  public function addAsyncVoid <X,T>(phase: Phase, interested:NS->NS->Option<X>, run:Void->PromiseD<T>):Bond {
     return addGeneric(phase, interested, run.promote());
   }
   
-  public function addSync <X>(phase: Phase, interested:NT->NT->Option<X>, run:X->Dynamic):Bond {
+  public function addSync <X,T>(phase: Phase, interested:NS->NS->Option<X>, run:X->T):Bond {
     return addAsync(phase, interested, run.map(Promises.pure));
   }
   
-  public function addAsync <X>(phase: Phase, interested:NT->NT->Option<X>, run:X->PromiseD<Dynamic>):Bond {
+  public function addAsync <X,T>(phase: Phase, interested:NS->NS->Option<X>, run:X->PromiseD<T>):Bond {
     return addGeneric(phase, interested, run);
   }
   
-  public function addAsyncFromTo <X>(phaseFrom: Phase, phaseTo:Phase, interested:NT->NT->Option<X>, run:X->PromiseD<Dynamic>):Bond {
+  public function addAsyncFromTo <X,T>(phaseFrom: Phase, phaseTo:Phase, interested:NS->NS->Option<X>, run:X->PromiseD<T>):Bond {
     Assert.isTrue(phaseToInt(phaseFrom) < phaseToInt(phaseTo));
     
     
@@ -170,52 +184,52 @@ class Navigation<NT, Phase>
     return addGeneric(phaseFrom, interested, newRun);
   }
   
-  public function addInterceptorSyncVoid <X>(interested:NT->NT->Option<X>, run:Void->Bool):Bond {
+  public function addInterceptorSyncVoid <X>(interested:NS->NS->Option<X>, run:Void->Bool):Bond {
     return addInterceptorAsyncVoid(interested, run.map(Promises.pure));
   }
   
-  public function addBlocker <X>(blocker:NT->NT->Bool):Bond {
+  public function addBlocker <X>(blocker:NS->NS->Bool):Bond {
     return makeBond(blockers, blocker);
   }
   
-  public function addInterceptorAsyncVoid <X>(interested:NT->NT->Option<X>, run:Void->PromiseD<Bool>):Bond {
+  public function addInterceptorAsyncVoid <X>(interested:NS->NS->Option<X>, run:Void->PromiseD<Bool>):Bond {
     return makeBond(interceptors, { interested : interested, run : run.promote() } );
   }
   
-  public function addInterceptorSync <X>(interested:NT->NT->Option<X>, run:X->Bool):Bond {
+  public function addInterceptorSync <X>(interested:NS->NS->Option<X>, run:X->Bool):Bond {
     return addInterceptorAsync(interested, run.map(Promises.pure));
   }
   
-  public function addInterceptorAsync <X>(interested:NT->NT->Option<X>, run:X->PromiseD<Bool>):Bond {
+  public function addInterceptorAsync <X>(interested:NS->NS->Option<X>, run:X->PromiseD<Bool>):Bond {
     return makeBond(interceptors, { interested : interested, run : run } );
   }
 
-  function setTarget (t:NT) 
+  function setTarget (t:NS) 
   {
     var cur = current.get();
-    current.set(t);
-    transition.set(Some( { from: cur, to: t } ));
+    currentSource.set(t);
+    transitionSource.set(Some( { from: cur, to: t } ));
   }
 
   
   
-  public function canGoto (target:NT):Bool {
+  public function canGoto (state:NS):Bool {
     var from = current.get();
-    return currentProgress.get().isComplete() && !eq(from, target);
+    return currentProgress.get().isComplete() && !eq(from, state);
   }
   
-  public function goto (target:NT):PromiseD<Bool> 
+  public function goto (state:NS):PromiseD<Bool> 
   {
     return if (currentProgress.get().isComplete()) 
     {
       
       var from = current.get();
       
-      if (blockers.any(function (b) return b(from, target))) {
+      if (blockers.any(function (b) return b(from, state))) {
         Promises.pure(false);
       } else {
       
-        if (eq(from, target)) {
+        if (eq(from, state)) {
           Promises.pure(true);
         } else {
           
@@ -227,18 +241,18 @@ class Navigation<NT, Phase>
 
               for (key in allPhases) {
                 var h = handlers.get(key);
-                p = p.then( function () return runHandlers(from, target, h));
+                p = p.then( function () return runHandlers(from, state, h));
               }
               
-              p.onComplete(function (_) setTarget(target))
+              p.onComplete(function (_) setTarget(state))
               .then(function () return Promises.pure(true));
             } else {
               Promises.pure(false);
             }
           }
           
-          var p = runInterceptors(from, target, interceptors).flatMap(handlersPromise);
-          currentProgress.set(p);
+          var p = runInterceptors(from, state, interceptors).flatMap(handlersPromise);
+          currentProgressSource.set(p);
           p;
         }
       }
@@ -247,21 +261,21 @@ class Navigation<NT, Phase>
     }
   }
   
-  function runInterceptors (from:NT, target:NT, interceptors:Array<Interceptor<NT, Dynamic>>):PromiseD<Bool>
+  function runInterceptors (from:NS, to:NS, interceptors:Array<Interceptor<NS, Dynamic>>):PromiseD<Bool>
   {
     var promises = interceptors
-      .filterWithOption(function (x) return x.interested(from, target).map(function (v) return { handler:x, val:v } ))
+      .filterWithOption(function (x) return x.interested(from, to).map(function (v) return { handler:x, val:v } ))
       .map(function (x) return x.handler.run(x.val));
-    return Promises.combineIterable(promises).map(function (x) return x.all(Scuts.id));
+    return Promises.zipIterable(promises).map(function (x) return x.all(Scuts.id));
   }
   
-  function runHandlers (from:NT, target:NT, handlers:Array<Handler<NT, Dynamic, Dynamic>>):PromiseD<Dynamic> {
+  function runHandlers (from:NS, to:NS, handlers:Array<Handler<NS, Dynamic, Dynamic>>):PromiseD<Dynamic> {
     
     var promises = handlers
-      .filterWithOption(function (x) return x.interested(from, target).map(function (v) return { handler:x, val:v }))
+      .filterWithOption(function (x) return x.interested(from, to).map(function (v) return { handler:x, val:v }))
       .map(function (x) return x.handler.run(x.val));
     
-    return Promises.combineIterable(promises);
+    return Promises.zipIterable(promises);
   }
   
 }
