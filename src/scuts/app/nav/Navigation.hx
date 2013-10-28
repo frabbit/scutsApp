@@ -222,41 +222,43 @@ class Navigation <NS, Phase>
   {
     return if (currentProgress.get().isComplete()) 
     {
-      
+
       var from = current.get();
       
-      if (blockers.any(function (b) return b(from, state))) {
-        Promises.pure(false);
-      } else {
-      
-        if (eq(from, state)) {
-          Promises.pure(true);
-        } else {
-          
-          function handlersPromise (x:Bool) 
-          {
-            return if (x) 
-            {
-              var p = Promises.pure(true);
-
-              for (key in allPhases) {
-                var h = handlers.get(key);
-                p = p.then( function () return runHandlers(from, state, h));
-              }
-              
-              p.onComplete(function (_) setTarget(state))
-              .then(function () return Promises.pure(true));
-            } else {
-              Promises.pure(false);
-            }
-          }
-          
-          var p = runInterceptors(from, state, interceptors).flatMap(handlersPromise);
-          currentProgressSource.set(p);
-          p;
-        }
+      if (eq(from, state)) 
+      {
+        Promises.pure(true);
       }
-    } else {
+      else if (blockers.any(function (b) return b(from, state))) 
+      {
+        Promises.pure(false);
+      } 
+      else 
+      {
+        function handlersPromise (x:Bool) 
+        {
+          return if (x) 
+          {
+            var p = Promises.pure(true);
+
+            for (key in allPhases) {
+              var h = handlers.get(key);
+              p = p.forceSwitchWith( function () return runHandlers(from, state, h));
+            }
+            
+            p.onComplete(function (_) {trace("new Target" + state); setTarget(state);})
+            .forceSwitchWith(function () return Promises.pure(true));
+          } else {
+            Promises.pure(false);
+          }
+        }
+        var p = runInterceptors(from, state, interceptors).flatMap(handlersPromise);
+        currentProgressSource.set(p);
+        p;
+      }
+    } 
+    else 
+    {
       Promises.pure(false);
     }
   }
