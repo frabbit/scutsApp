@@ -243,11 +243,11 @@ class Navigation <NS, Phase>
 
             for (key in allPhases) {
               var h = handlers.get(key);
-              p = p.forceSwitchWith( function () return runHandlers(from, state, h));
+              p = p.forceSwitchTo( function () return runHandlers(from, state, h));
             }
             
             p.onComplete(function (_) {trace("new Target" + state); setTarget(state);})
-            .forceSwitchWith(function () return Promises.pure(true));
+            .forceSwitchTo(function () return Promises.pure(true));
           } else {
             Promises.pure(false);
           }
